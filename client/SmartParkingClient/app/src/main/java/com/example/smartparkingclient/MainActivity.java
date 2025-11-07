@@ -28,7 +28,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void fetchData() {
         OkHttpClient client = new OkHttpClient();
-        String url = "https://jsonplaceholder.typicode.com/posts/1"; // тестовый URL
+        String url = "http://10.0.2.2:8000/";
+
 
         Request request = new Request.Builder()
                 .url(url)
