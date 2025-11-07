@@ -1,23 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="24dp">
+    android:padding="16dp">
 
     <Button
-        android:id="@+id/btnEnter"
+        android:id="@+id/btnFetch"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="🚗 Въезд"
-        android:textSize="20sp"
-        android:layout_marginBottom="20dp"/>
+        android:text="Получить данные с сервера" />
 
-    <Button
-        android:id="@+id/btnExit"
+    <TextView
+        android:id="@+id/tvResponse"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="🚙 Выезд"
-        android:textSize="20sp"/>
+        android:paddingTop="16dp"
+        android:text="Ответ сервера появится здесь"
+        android:textSize="16sp" />
+
 </LinearLayout>
