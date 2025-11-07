@@ -4,56 +4,22 @@
     android:gravity="center"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp"
-    android:background="#F5F5F5">
-
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Smart Parking"
-        android:textSize="26sp"
-        android:textStyle="bold"
-        android:textColor="#333333"
-        android:paddingBottom="32dp"/>
+    android:padding="24dp">
 
     <Button
-        android:id="@+id/btnCheck"
+        android:id="@+id/buttonRequest"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Получить данные с сервера" />
+
+    <TextView
+        android:id="@+id/textViewResult"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Проверить статус парковки"
-        android:textAllCaps="false"
-        android:backgroundTint="#1976D2"
-        android:textColor="#FFFFFF"/>
-
-    <LinearLayout
-        android:id="@+id/statusContainer"
-        android:orientation="vertical"
+        android:layout_marginTop="20dp"
+        android:text="Здесь будет ответ сервера"
+        android:textSize="18sp"
         android:gravity="center"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="40dp"
-        android:padding="24dp"
-        android:background="#FFFFFF"
-        android:elevation="4dp"
-        android:layout_margin="12dp"
-        android:radius="8dp">
-
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Нажмите кнопку для проверки"
-            android:textSize="18sp"
-            android:textColor="#555555"/>
-
-        <View
-            android:id="@+id/statusIndicator"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:layout_marginTop="16dp"
-            android:background="#9E9E9E"
-            android:layout_gravity="center"/>
-    </LinearLayout>
+        android:textColor="#333333" />
 
 </LinearLayout>

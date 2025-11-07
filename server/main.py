@@ -1,13 +1,23 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
 
-class SimpleHandler(BaseHTTPRequestHandler):
+class SmartParkingHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain; charset=utf-8')
-        self.end_headers()
-        self.wfile.write(b"SmartParking Server is running!")
+        if self.path == "/":
+            response = {"status": "ok", "message": "SmartParking server running"}
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode("utf-8"))
+        else:
+            self.send_response(404)
+            self.end_headers()
 
-if __name__ == "__main__":
-    server = HTTPServer(('localhost', 8000), SimpleHandler)
+def run(server_class=HTTPServer, handler_class=SmartParkingHandler):
+    server_address = ('', 8000)
+    httpd = server_class(server_address, handler_class)
     print("🚗 SmartParkingServer started on http://localhost:8000")
-    server.serve_forever()
+    httpd.serve_forever()
+
+if __name__ == '__main__':
+    run()
