@@ -3,6 +3,8 @@ package com.example.smartparkingclient;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -16,9 +18,6 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
-import android.view.View;
-import android.view.ViewGroup;
-
 import com.google.android.material.navigation.NavigationView;
 
 public class MainActivity extends AppCompatActivity {
@@ -26,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
     private Toolbar toolbar;
+    private String lastTheme;
 
     private Button btnEnter;
     private Button btnExit;
@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        applyThemeFromPrefs();          // СНАЧАЛА тема
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -68,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
         headerView = navigationView.getHeaderView(0);
         headerUserName = headerView.findViewById(R.id.headerUserName);
         headerBalance = headerView.findViewById(R.id.headerBalance);
-        updateHeader(); // выставляем "Гость" и 0 ₽
+        updateHeader(); // "Гость", 0 ₽
 
         // ----- Кнопки главного меню -----
         btnEnter = findViewById(R.id.btnEnter);
@@ -79,6 +80,9 @@ public class MainActivity extends AppCompatActivity {
                 showNeedAuthDialog();
                 return;
             }
+            if (AppPrefs.isNotificationsEnabled(this)) {
+                Toast.makeText(this, "Заезд на парковку", Toast.LENGTH_SHORT).show();
+            }
             Intent intent = new Intent(MainActivity.this, ParkingActivity.class);
             intent.putExtra("mode", "enter");
             startActivity(intent);
@@ -88,6 +92,9 @@ public class MainActivity extends AppCompatActivity {
             if (!isAuthorized) {
                 showNeedAuthDialog();
                 return;
+            }
+            if (AppPrefs.isNotificationsEnabled(this)) {
+                Toast.makeText(this, "Выезд с парковки", Toast.LENGTH_SHORT).show();
             }
             Intent intent = new Intent(MainActivity.this, ParkingActivity.class);
             intent.putExtra("mode", "exit");
@@ -108,6 +115,33 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void applyThemeFromPrefs() {
+        String theme = AppPrefs.getTheme(this);
+        lastTheme = theme;  // запоминаем, какая тема была применена
+        switch (theme) {
+            case "dark":
+                setTheme(R.style.Theme_SmartParkingClient_Dark);
+                break;
+            case "neutral":
+                setTheme(R.style.Theme_SmartParkingClient_Neutral);
+                break;
+            default:
+                setTheme(R.style.Theme_SmartParkingClient_Light);
+                break;
+        }
+    }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // если тема в настройках изменилась — пересоздаём главное окно
+        String currentTheme = AppPrefs.getTheme(this);
+        if (lastTheme != null && !lastTheme.equals(currentTheme)) {
+            lastTheme = currentTheme;
+            recreate();    // вызовет onCreate заново с новой темой
+        }
+    }
+
+
     // ---------- обработка пунктов бокового меню ----------
     private boolean onNavItemSelected(MenuItem item) {
         int id = item.getItemId();
@@ -125,9 +159,8 @@ public class MainActivity extends AppCompatActivity {
         } else if (id == R.id.nav_info) {
             showAboutDialog();
         } else if (id == R.id.nav_settings) {
-            Toast.makeText(this,
-                    "Настройки пока не реализованы",
-                    Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
         } else if (id == R.id.nav_logout) {
             if (isAuthorized) {
                 isAuthorized = false;
@@ -166,7 +199,6 @@ public class MainActivity extends AppCompatActivity {
 
     // ---------- простой диалог авторизации (заглушка) ----------
     private void showLoginDialog() {
-        // Простейшая форма — только ввод имени
         final EditText inputName = new EditText(this);
         inputName.setHint("Введите имя");
 
@@ -191,10 +223,9 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // тут могла бы быть реальная проверка логина/пароля
                     isAuthorized = true;
                     currentUserName = name;
-                    currentBalance = 150; // фейковый баланс, для примера
+                    currentBalance = 150; // фейковый баланс
                     updateHeader();
 
                     Toast.makeText(this,
