@@ -3,10 +3,12 @@ package com.example.smartparkingclient;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
+import android.view.Gravity;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.view.ViewGroup;
+import android.view.View;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -29,7 +31,7 @@ public class ParkingActivity extends AppCompatActivity {
     private TextView titleText;
 
     private final OkHttpClient client = new OkHttpClient();
-    private static final String BASE_URL = "http://10.0.2.2:8000";  // как у тебя
+    private static final String BASE_URL = "http://10.0.2.2:8000";
     private static final MediaType JSON
             = MediaType.parse("application/json; charset=utf-8");
 
@@ -37,6 +39,7 @@ public class ParkingActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        applyThemeFromPrefs();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_parking);
 
@@ -44,7 +47,6 @@ public class ParkingActivity extends AppCompatActivity {
         rightColumn = findViewById(R.id.rightColumn);
         titleText = findViewById(R.id.titleText);
 
-        // получаем режим из Intent
         String fromIntent = getIntent().getStringExtra("mode");
         if (fromIntent != null) {
             mode = fromIntent;
@@ -59,7 +61,26 @@ public class ParkingActivity extends AppCompatActivity {
         loadParkingPlaces();
     }
 
-    // =========== загрузка списка мест ===========
+    private void applyThemeFromPrefs() {
+        String theme = AppPrefs.getTheme(this);
+        switch (theme) {
+            case "dark":
+                setTheme(R.style.Theme_SmartParkingClient_Dark);
+                break;
+            case "neutral":
+                setTheme(R.style.Theme_SmartParkingClient_Neutral);
+                break;
+            default:
+                setTheme(R.style.Theme_SmartParkingClient_Light);
+                break;
+        }
+    }
+
+    private boolean notificationsEnabled() {
+        return AppPrefs.isNotificationsEnabled(this);
+    }
+
+    // ================= Загрузка списка мест =================
     private void loadParkingPlaces() {
         Request request = new Request.Builder()
                 .url(BASE_URL + "/places")
@@ -120,22 +141,20 @@ public class ParkingActivity extends AppCompatActivity {
         });
     }
 
-    // =========== добавляем одно парковочное место ===========
+    // ================= Добавление одного парковочного места =================
     private void addSlotView(int index, int id, String status) {
         boolean isFree = "free".equalsIgnoreCase(status);
 
-        // куда кладём: чётные слева, нечётные справа
         LinearLayout column = (index % 2 == 0) ? leftColumn : rightColumn;
 
         TextView slot = new TextView(this);
         slot.setText("Место " + id);
         slot.setTextSize(16);
-        slot.setGravity(android.view.Gravity.CENTER);
+        slot.setGravity(Gravity.CENTER);
 
         int padding = dpToPx(8);
         slot.setPadding(padding, padding, padding, padding);
 
-        // высота и отступы
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 dpToPx(56)
@@ -143,36 +162,41 @@ public class ParkingActivity extends AppCompatActivity {
         params.setMargins(0, 0, 0, dpToPx(8));
         slot.setLayoutParams(params);
 
-        // цвет по статусу
-        int bgColor = isFree ? 0xFFA8E6CF : 0xFFFF8C8C;
+        int bgColor = isFree ? 0xFFA8E6CF : 0xFFFF8C8C; // зелёный/красный
         slot.setBackgroundColor(bgColor);
 
-        // клики
         String statusForClick = status;
+
         slot.setOnClickListener(v -> {
             if ("enter".equals(mode)) {
-                // режим заезда
                 if (isFree) {
-                    Toast.makeText(this,
-                            "Вы выбрали место " + id,
-                            Toast.LENGTH_SHORT).show();
+                    if (notificationsEnabled()) {
+                        Toast.makeText(this,
+                                "Вы выбрали место " + id,
+                                Toast.LENGTH_SHORT).show();
+                    }
                     togglePlaceStatus(id, statusForClick);
                 } else {
-                    Toast.makeText(this,
-                            "Место " + id + " занято",
-                            Toast.LENGTH_SHORT).show();
+                    if (notificationsEnabled()) {
+                        Toast.makeText(this,
+                                "Место " + id + " занято",
+                                Toast.LENGTH_SHORT).show();
+                    }
                 }
             } else {
-                // режим выезда — можно, например, разрешить нажимать только занятые
                 if (!isFree) {
-                    Toast.makeText(this,
-                            "Вы освобождаете место " + id,
-                            Toast.LENGTH_SHORT).show();
+                    if (notificationsEnabled()) {
+                        Toast.makeText(this,
+                                "Вы освобождаете место " + id,
+                                Toast.LENGTH_SHORT).show();
+                    }
                     togglePlaceStatus(id, statusForClick);
                 } else {
-                    Toast.makeText(this,
-                            "Место " + id + " уже свободно",
-                            Toast.LENGTH_SHORT).show();
+                    if (notificationsEnabled()) {
+                        Toast.makeText(this,
+                                "Место " + id + " уже свободно",
+                                Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
         });
@@ -180,7 +204,7 @@ public class ParkingActivity extends AppCompatActivity {
         column.addView(slot);
     }
 
-    // =========== запрос на смену статуса ===========
+    // ================= Отправка запроса смены статуса =================
     private void togglePlaceStatus(int id, String currentStatus) {
         String newStatus = "free".equalsIgnoreCase(currentStatus) ? "busy" : "free";
 
@@ -214,10 +238,12 @@ public class ParkingActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws IOException {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
-                        Toast.makeText(ParkingActivity.this,
-                                "Статус изменён",
-                                Toast.LENGTH_SHORT).show();
-                        loadParkingPlaces();   // обновить схему
+                        if (notificationsEnabled()) {
+                            Toast.makeText(ParkingActivity.this,
+                                    "Статус изменён",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                        loadParkingPlaces();
                     } else {
                         Toast.makeText(ParkingActivity.this,
                                 "Ошибка обновления: " + response.code(),
@@ -228,7 +254,6 @@ public class ParkingActivity extends AppCompatActivity {
         });
     }
 
-    // =========== утилита: dp -> px ===========
     private int dpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round(dp * density);
