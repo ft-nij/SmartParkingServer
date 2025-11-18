@@ -2,5 +2,6 @@
     <string name="app_name">SmartParkingClient</string>
     <string name="nav_open">Открыть меню</string>
     <string name="nav_close">Закрыть меню</string>
+    <string name="settings_enable_notifications">Включить уведомления</string>
 
 </resources>
