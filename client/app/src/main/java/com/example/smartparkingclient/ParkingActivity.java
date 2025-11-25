@@ -3,18 +3,25 @@ package com.example.smartparkingclient;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.view.View;
+
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -61,6 +68,7 @@ public class ParkingActivity extends AppCompatActivity {
         loadParkingPlaces();
     }
 
+    // ====== Тема ======
     private void applyThemeFromPrefs() {
         String theme = AppPrefs.getTheme(this);
         switch (theme) {
@@ -80,7 +88,7 @@ public class ParkingActivity extends AppCompatActivity {
         return AppPrefs.isNotificationsEnabled(this);
     }
 
-    // ================= Загрузка списка мест =================
+    // ====== Загрузка мест ======
     private void loadParkingPlaces() {
         Request request = new Request.Builder()
                 .url(BASE_URL + "/places")
@@ -141,7 +149,7 @@ public class ParkingActivity extends AppCompatActivity {
         });
     }
 
-    // ================= Добавление одного парковочного места =================
+    // ====== Один слот ======
     private void addSlotView(int index, int id, String status) {
         boolean isFree = "free".equalsIgnoreCase(status);
 
@@ -165,17 +173,10 @@ public class ParkingActivity extends AppCompatActivity {
         int bgColor = isFree ? 0xFFA8E6CF : 0xFFFF8C8C; // зелёный/красный
         slot.setBackgroundColor(bgColor);
 
-        String statusForClick = status;
-
         slot.setOnClickListener(v -> {
             if ("enter".equals(mode)) {
                 if (isFree) {
-                    if (notificationsEnabled()) {
-                        Toast.makeText(this,
-                                "Вы выбрали место " + id,
-                                Toast.LENGTH_SHORT).show();
-                    }
-                    togglePlaceStatus(id, statusForClick);
+                    showEnterDialog(id, status);
                 } else {
                     if (notificationsEnabled()) {
                         Toast.makeText(this,
@@ -185,12 +186,7 @@ public class ParkingActivity extends AppCompatActivity {
                 }
             } else {
                 if (!isFree) {
-                    if (notificationsEnabled()) {
-                        Toast.makeText(this,
-                                "Вы освобождаете место " + id,
-                                Toast.LENGTH_SHORT).show();
-                    }
-                    togglePlaceStatus(id, statusForClick);
+                    showExitDialog(id, status);
                 } else {
                     if (notificationsEnabled()) {
                         Toast.makeText(this,
@@ -204,7 +200,118 @@ public class ParkingActivity extends AppCompatActivity {
         column.addView(slot);
     }
 
-    // ================= Отправка запроса смены статуса =================
+    // ====== Диалог ЗАЕЗДА ======
+    private void showEnterDialog(int placeId, String currentStatus) {
+        long now = System.currentTimeMillis();
+        saveStartTime(placeId, now);
+
+        String timeStr = new SimpleDateFormat("HH:mm", Locale.getDefault())
+                .format(new Date(now));
+
+        String message = "Вы выбрали место " + placeId +
+                "\nС " + timeStr +
+                "\nЧерез 5 сек откроется шлагбаум." +
+                "\nПриятного времяпрепровождения!";
+
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_parking_info, null);
+        TextView titleView = dialogView.findViewById(R.id.dialogTitleText);
+        TextView messageView = dialogView.findViewById(R.id.dialogMessageText);
+
+        titleView.setText("Заезд на парковку");
+        messageView.setText(message);
+
+        new MaterialAlertDialogBuilder(this)
+                .setView(dialogView)
+                .setPositiveButton("Ок", (dialog, which) -> {
+                    togglePlaceStatus(placeId, currentStatus);
+
+                    if (notificationsEnabled()) {
+                        new Handler(Looper.getMainLooper()).postDelayed(
+                                () -> Toast.makeText(this,
+                                        "Шлагбаум открыт",
+                                        Toast.LENGTH_SHORT).show(),
+                                5000
+                        );
+                    }
+                })
+                .setNegativeButton("Отмена", (dialog, which) -> clearStartTime(placeId))
+                .show();
+    }
+
+    // ====== Диалог ВЫЕЗДА ======
+    private void showExitDialog(int placeId, String currentStatus) {
+        long startTime = getStartTime(placeId);
+        long now = System.currentTimeMillis();
+
+        String message;
+        long price = 0;
+        int oldBalance = AppPrefs.getBalance(this);
+        int newBalance = oldBalance;
+
+        if (startTime <= 0) {
+            message = "Вы покидаете место " + placeId +
+                    "\nНе удалось определить время стоянки." +
+                    "\nЧерез 5 сек откроется шлагбаум." +
+                    "\nПриятного пути!";
+        } else {
+            long durationMillis = now - startTime;
+            long minutes = Math.max(1, durationMillis / 60000); // не меньше 1 мин
+            price = minutes * 2; // 2 ₽/мин
+            long hours = minutes / 60;
+            long minsLeft = minutes % 60;
+
+            String durationStr;
+            if (hours > 0) {
+                durationStr = hours + " ч " + minsLeft + " мин";
+            } else {
+                durationStr = minutes + " мин";
+            }
+
+            newBalance = (int) Math.max(0, oldBalance - price);
+
+            message = "Вы покидаете место " + placeId +
+                    "\nВы были на парковке " + durationStr + "." +
+                    "\nС вашего баланса спишется " + price + " ₽." +
+                    "\nТекущий баланс: " + oldBalance + " ₽." +
+                    "\nПосле списания останется: " + newBalance + " ₽." +
+                    "\nЧерез 5 сек откроется шлагбаум." +
+                    "\nПриятного пути!";
+        }
+
+        final long finalPrice = price;
+        final int finalNewBalance = newBalance;
+
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_parking_info, null);
+        TextView titleView = dialogView.findViewById(R.id.dialogTitleText);
+        TextView messageView = dialogView.findViewById(R.id.dialogMessageText);
+
+        titleView.setText("Выезд с парковки");
+        messageView.setText(message);
+
+        new MaterialAlertDialogBuilder(this)
+                .setView(dialogView)
+                .setPositiveButton("Ок", (dialog, which) -> {
+                    togglePlaceStatus(placeId, currentStatus);
+                    clearStartTime(placeId);
+
+                    if (startTime > 0) {
+                        AppPrefs.setBalance(this, finalNewBalance);
+                    }
+
+                    if (notificationsEnabled()) {
+                        new Handler(Looper.getMainLooper()).postDelayed(
+                                () -> Toast.makeText(this,
+                                        "Шлагбаум открыт",
+                                        Toast.LENGTH_SHORT).show(),
+                                5000
+                        );
+                    }
+                })
+                .setNegativeButton("Отмена", null)
+                .show();
+    }
+
+    // ====== Смена статуса на сервере ======
     private void togglePlaceStatus(int id, String currentStatus) {
         String newStatus = "free".equalsIgnoreCase(currentStatus) ? "busy" : "free";
 
@@ -236,24 +343,32 @@ public class ParkingActivity extends AppCompatActivity {
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                runOnUiThread(() -> {
-                    if (response.isSuccessful()) {
-                        if (notificationsEnabled()) {
-                            Toast.makeText(ParkingActivity.this,
-                                    "Статус изменён",
-                                    Toast.LENGTH_SHORT).show();
-                        }
-                        loadParkingPlaces();
-                    } else {
-                        Toast.makeText(ParkingActivity.this,
-                                "Ошибка обновления: " + response.code(),
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
+                runOnUiThread(ParkingActivity.this::loadParkingPlaces);
             }
         });
     }
 
+    // ====== Время начала стоянки ======
+    private void saveStartTime(int placeId, long timeMillis) {
+        getSharedPreferences("parking_times", MODE_PRIVATE)
+                .edit()
+                .putLong("place_" + placeId + "_start", timeMillis)
+                .apply();
+    }
+
+    private long getStartTime(int placeId) {
+        return getSharedPreferences("parking_times", MODE_PRIVATE)
+                .getLong("place_" + placeId + "_start", 0L);
+    }
+
+    private void clearStartTime(int placeId) {
+        getSharedPreferences("parking_times", MODE_PRIVATE)
+                .edit()
+                .remove("place_" + placeId + "_start")
+                .apply();
+    }
+
+    // ====== dp -> px ======
     private int dpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round(dp * density);

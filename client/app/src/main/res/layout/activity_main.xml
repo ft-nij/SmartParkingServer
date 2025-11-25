@@ -17,8 +17,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorPrimary"
-            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-            app:title="Smart Parking" />
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
 
         <!-- Твоё старое главное меню с кнопками -->
         <LinearLayout
@@ -52,6 +51,11 @@
 
         </LinearLayout>
 
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottomNav"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:menu="@menu/bottom_nav_menu" />
     </LinearLayout>
 
     <!-- Выезжающее меню слева -->
