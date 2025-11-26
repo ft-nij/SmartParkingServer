@@ -27,6 +27,8 @@
 
         </activity>
 
+        <activity android:name=".SettingsActivity" />
+
         <!-- окно выбора парковочного места -->
         <activity
             android:name=".ParkingActivity"

@@ -18,27 +18,32 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationView;
 
 public class MainActivity extends AppCompatActivity {
 
+    // Drawer / Navigation
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
     private Toolbar toolbar;
-    private String lastTheme;
+    private BottomNavigationView bottomNav;
 
+    // Кнопки главного экрана
     private Button btnEnter;
     private Button btnExit;
 
-    // ----- простое состояние авторизации -----
+    // Авторизация (простая заглушка)
     private boolean isAuthorized = false;
     private String currentUserName = "Гость";
-    private int currentBalance = 0;
 
-    // ссылки на элементы шапки меню
+    // Шапка бокового меню
     private View headerView;
     private android.widget.TextView headerUserName;
     private android.widget.TextView headerBalance;
+
+    // Для отслеживания изменения темы
+    private String lastTheme;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,10 +51,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // ----- Drawer / Toolbar -----
+        // ----- инициализация Drawer / Toolbar -----
         drawerLayout = findViewById(R.id.drawer_layout);
         navigationView = findViewById(R.id.nav_view);
         toolbar = findViewById(R.id.toolbar);
+        bottomNav = findViewById(R.id.bottomNav);
 
         setSupportActionBar(toolbar);
 
@@ -65,13 +71,13 @@ public class MainActivity extends AppCompatActivity {
 
         navigationView.setNavigationItemSelectedListener(this::onNavItemSelected);
 
-        // ----- шапка меню -----
+        // ----- шапка бокового меню -----
         headerView = navigationView.getHeaderView(0);
         headerUserName = headerView.findViewById(R.id.headerUserName);
         headerBalance = headerView.findViewById(R.id.headerBalance);
-        updateHeader(); // "Гость", 0 ₽
+        updateHeader();
 
-        // ----- Кнопки главного меню -----
+        // ----- кнопки "Заехать" / "Выехать" -----
         btnEnter = findViewById(R.id.btnEnter);
         btnExit = findViewById(R.id.btnExit);
 
@@ -101,7 +107,10 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        // ----- Кнопка "Назад" с учётом открытого меню -----
+        // ----- нижняя навигация -----
+        setupBottomNavigation();
+
+        // ----- обработка системной кнопки "Назад" с учётом открытого меню -----
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -115,9 +124,11 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // применяем тему + запоминаем какую применили
     private void applyThemeFromPrefs() {
         String theme = AppPrefs.getTheme(this);
-        lastTheme = theme;  // запоминаем, какая тема была применена
+        lastTheme = theme;
+
         switch (theme) {
             case "dark":
                 setTheme(R.style.Theme_SmartParkingClient_Dark);
@@ -130,19 +141,53 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
     }
+
+    // Если тема изменилась в настройках — пересоздаём экран
     @Override
     protected void onResume() {
         super.onResume();
-        // если тема в настройках изменилась — пересоздаём главное окно
         String currentTheme = AppPrefs.getTheme(this);
         if (lastTheme != null && !lastTheme.equals(currentTheme)) {
             lastTheme = currentTheme;
-            recreate();    // вызовет onCreate заново с новой темой
+            recreate();
+            return;
         }
+        // обновляем баланс в шапке (мог измениться при выезде/пополнении)
+        updateHeader();
     }
 
+    // ---------- нижняя навигация ----------
+    private void setupBottomNavigation() {
+        if (bottomNav == null) return;
 
-    // ---------- обработка пунктов бокового меню ----------
+        bottomNav.setOnItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.tab_profile) {
+                if (!isAuthorized) {
+                    showLoginDialog();
+                } else {
+                    Toast.makeText(this,
+                            "Профиль: " + currentUserName +
+                                    "\nБаланс: " + AppPrefs.getBalance(this) + " ₽",
+                            Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            } else if (id == R.id.tab_home) {
+                // уже на главном экране
+                return true;
+            } else if (id == R.id.tab_settings) {
+                Intent intent = new Intent(this, SettingsActivity.class);
+                startActivity(intent);
+                return true;
+            }
+            return false;
+        });
+
+        // по умолчанию выделяем главную вкладку
+        bottomNav.setSelectedItemId(R.id.tab_home);
+    }
+
+    // ---------- обработка пунктов БОКОВОГО меню ----------
     private boolean onNavItemSelected(MenuItem item) {
         int id = item.getItemId();
 
@@ -152,9 +197,7 @@ public class MainActivity extends AppCompatActivity {
             if (!isAuthorized) {
                 showNeedAuthToast();
             } else {
-                Toast.makeText(this,
-                        "Ваш баланс: " + currentBalance + " ₽",
-                        Toast.LENGTH_SHORT).show();
+                showTopUpDialog();
             }
         } else if (id == R.id.nav_info) {
             showAboutDialog();
@@ -165,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
             if (isAuthorized) {
                 isAuthorized = false;
                 currentUserName = "Гость";
-                currentBalance = 0;
+                AppPrefs.setBalance(this, 0); // обнулим баланс при выходе
                 updateHeader();
                 Toast.makeText(this,
                         "Вы вышли из аккаунта",
@@ -197,7 +240,7 @@ public class MainActivity extends AppCompatActivity {
                 Toast.LENGTH_SHORT).show();
     }
 
-    // ---------- простой диалог авторизации (заглушка) ----------
+    // ---------- простой диалог авторизации ----------
     private void showLoginDialog() {
         final EditText inputName = new EditText(this);
         inputName.setHint("Введите имя");
@@ -225,12 +268,72 @@ public class MainActivity extends AppCompatActivity {
 
                     isAuthorized = true;
                     currentUserName = name;
-                    currentBalance = 150; // фейковый баланс
+                    // стартовый баланс, например 150 ₽
+                    AppPrefs.setBalance(this, 150);
                     updateHeader();
 
                     Toast.makeText(this,
                             "Добро пожаловать, " + currentUserName + "!",
                             Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Отмена", null)
+                .show();
+    }
+
+    // ---------- пополнение баланса ----------
+    private void showTopUpDialog() {
+        int current = AppPrefs.getBalance(this);
+
+        EditText input = new EditText(this);
+        input.setHint("Сумма пополнения");
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        int padding = dpToPx(20);
+        container.setPadding(padding, padding, padding, padding);
+
+        android.widget.TextView info = new android.widget.TextView(this);
+        info.setText("Текущий баланс: " + current + " ₽");
+
+        container.addView(info,
+                new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+        container.addView(input,
+                new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        new AlertDialog.Builder(this)
+                .setTitle("Пополнение баланса")
+                .setView(container)
+                .setPositiveButton("Пополнить", (dialog, which) -> {
+                    String text = input.getText().toString().trim();
+                    if (text.isEmpty()) {
+                        Toast.makeText(this,
+                                "Введите сумму",
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    try {
+                        int amount = Integer.parseInt(text);
+                        if (amount <= 0) {
+                            Toast.makeText(this,
+                                    "Сумма должна быть > 0",
+                                    Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        AppPrefs.addToBalance(this, amount);
+                        updateHeader();
+                        Toast.makeText(this,
+                                "Баланс пополнен на " + amount + " ₽",
+                                Toast.LENGTH_SHORT).show();
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(this,
+                                "Некорректная сумма",
+                                Toast.LENGTH_SHORT).show();
+                    }
                 })
                 .setNegativeButton("Отмена", null)
                 .show();
@@ -251,7 +354,8 @@ public class MainActivity extends AppCompatActivity {
             headerUserName.setText(currentUserName);
         }
         if (headerBalance != null) {
-            headerBalance.setText("Баланс: " + currentBalance + " ₽");
+            int balance = AppPrefs.getBalance(this);
+            headerBalance.setText("Баланс: " + balance + " ₽");
         }
     }
 

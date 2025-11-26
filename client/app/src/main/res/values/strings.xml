@@ -4,4 +4,9 @@
     <string name="nav_close">Закрыть меню</string>
     <string name="settings_enable_notifications">Включить уведомления</string>
 
+
+    <string name="tab_profile">Профиль</string>
+    <string name="tab_home">Главная</string>
+    <string name="tab_settings">Настройки</string>
+
 </resources>

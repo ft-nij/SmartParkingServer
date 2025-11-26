@@ -10,6 +10,7 @@ public class AppPrefs {
     public static final String KEY_THEME = "theme";          // "light", "dark", "neutral"
     public static final String KEY_LANG = "lang";            // "ru", "en"
     public static final String KEY_NOTIFICATIONS = "notify"; // true / false
+    public static final String KEY_BALANCE = "balance";      // баланс в рублях (int)
 
     private static SharedPreferences getPrefs(Context context) {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -40,5 +41,19 @@ public class AppPrefs {
 
     public static void setNotificationsEnabled(Context context, boolean enabled) {
         getPrefs(context).edit().putBoolean(KEY_NOTIFICATIONS, enabled).apply();
+    }
+
+    // ---------- баланс ----------
+    public static int getBalance(Context context) {
+        return getPrefs(context).getInt(KEY_BALANCE, 0);
+    }
+
+    public static void setBalance(Context context, int value) {
+        getPrefs(context).edit().putInt(KEY_BALANCE, Math.max(0, value)).apply();
+    }
+
+    public static void addToBalance(Context context, int delta) {
+        int current = getBalance(context);
+        setBalance(context, current + Math.max(0, delta));
     }
 }
