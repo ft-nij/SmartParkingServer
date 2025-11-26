@@ -6,14 +6,14 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# Имитация парковочных мест
-parking_places = [
-    {"id": 1, "status": "free"},
-    {"id": 2, "status": "busy"},
-    {"id": 3, "status": "free"},
-    {"id": 4, "status": "busy"},
-    {"id": 5, "status": "free"}
-]
+# Создаём список из 20 парковочных мест
+parking_places = []
+
+for i in range(1, 21):  # 20 мест
+    parking_places.append({
+        "id": i,
+        "status": "free" if i % 2 == 0 else "busy"
+    })
 
 @app.route("/places", methods=["GET"])
 def get_places():
@@ -34,7 +34,6 @@ def update_place():
     return jsonify({"success": False, "message": "Место не найдено"}), 404
 
 def log_action(message):
-    """Запись действий в файл."""
     with open("server_log.txt", "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
 
