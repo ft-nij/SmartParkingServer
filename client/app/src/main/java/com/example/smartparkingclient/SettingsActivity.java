@@ -5,9 +5,11 @@ import android.widget.Button;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Switch;
-import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -17,32 +19,74 @@ public class SettingsActivity extends AppCompatActivity {
     private Switch switchNotify;
     private Button btnApply;
 
+    private String lastTheme;
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        applyThemeFromPrefs();               // применяем тему до super.onCreate
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        applyThemeFromPrefs();          // сначала применяем тему
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
-        rgTheme = findViewById(R.id.rgTheme);
-        rgLang = findViewById(R.id.rgLang);
+        // стрелка "назад" в ActionBar (если используешь)
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle("Настройки");
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
 
+        rgTheme = findViewById(R.id.rgTheme);
         rbThemeLight = findViewById(R.id.rbThemeLight);
         rbThemeDark = findViewById(R.id.rbThemeDark);
         rbThemeNeutral = findViewById(R.id.rbThemeNeutral);
 
+        rgLang = findViewById(R.id.rgLang);
         rbLangRu = findViewById(R.id.rbLangRu);
         rbLangEn = findViewById(R.id.rbLangEn);
 
         switchNotify = findViewById(R.id.switchNotify);
         btnApply = findViewById(R.id.btnApply);
 
-        loadSettings();
-        initApplyButton();
+        // подставляем текущие значения из AppPrefs
+        loadCurrentSettingsToUI();
+
+        // кнопка "Применить"
+        btnApply.setOnClickListener(v -> {
+            saveSettingsFromUI();
+            finish();   // просто закрываем настройки
+        });
+
+        // нижняя навигация
+        BottomNavigationView bottomNav = findViewById(R.id.bottomNav);
+        if (bottomNav != null) {
+            bottomNav.setOnItemSelectedListener(item -> {
+                int id = item.getItemId();
+                if (id == R.id.tab_profile) {
+                    // тут можно открыть отдельный экран профиля
+                    // пока оставим заглушку
+                    return true;
+                } else if (id == R.id.tab_home) {
+                    finish();   // вернуться на главную
+                    return true;
+                } else if (id == R.id.tab_settings) {
+                    return true; // мы уже на настройках
+                }
+                return false;
+            });
+            bottomNav.setSelectedItemId(R.id.tab_settings);
+        }
     }
 
-    // применяем тему для самого экрана настроек
+    // стрелка в ActionBar
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();       // закрываем настройки без сохранения
+        return true;
+    }
+
+    // применяем тему до super.onCreate()
     private void applyThemeFromPrefs() {
         String theme = AppPrefs.getTheme(this);
+        lastTheme = theme;
+
         switch (theme) {
             case "dark":
                 setTheme(R.style.Theme_SmartParkingClient_Dark);
@@ -56,52 +100,48 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    // выставляем переключатели в соответствии с сохранёнными настройками
-    private void loadSettings() {
-        String theme = AppPrefs.getTheme(this);
-        String lang = AppPrefs.getLang(this);
-        boolean notify = AppPrefs.isNotificationsEnabled(this);
-
+    private void loadCurrentSettingsToUI() {
         // Тема
-        if ("dark".equals(theme)) rbThemeDark.setChecked(true);
-        else if ("neutral".equals(theme)) rbThemeNeutral.setChecked(true);
-        else rbThemeLight.setChecked(true);
+        String theme = AppPrefs.getTheme(this);
+        if ("dark".equals(theme)) {
+            rbThemeDark.setChecked(true);
+        } else if ("neutral".equals(theme)) {
+            rbThemeNeutral.setChecked(true);
+        } else {
+            rbThemeLight.setChecked(true);
+        }
 
         // Язык
-        if ("en".equals(lang)) rbLangEn.setChecked(true);
-        else rbLangRu.setChecked(true);
+        String lang = AppPrefs.getLang(this);
+        if ("en".equals(lang)) {
+            rbLangEn.setChecked(true);
+        } else {
+            rbLangRu.setChecked(true);
+        }
 
         // Уведомления
+        boolean notify = AppPrefs.isNotificationsEnabled(this);
         switchNotify.setChecked(notify);
     }
 
-    // логика кнопки "Применить"
-    private void initApplyButton() {
-        btnApply.setOnClickListener(v -> {
+    private void saveSettingsFromUI() {
+        // Тема
+        String theme;
+        int checkedThemeId = rgTheme.getCheckedRadioButtonId();
+        if (checkedThemeId == R.id.rbThemeDark) {
+            theme = "dark";
+        } else if (checkedThemeId == R.id.rbThemeNeutral) {
+            theme = "neutral";
+        } else {
+            theme = "light";
+        }
+        AppPrefs.setTheme(this, theme);
 
-            // --- читаем выбранную тему ---
-            String theme = "light";
-            int themeId = rgTheme.getCheckedRadioButtonId();
-            if (themeId == R.id.rbThemeDark) theme = "dark";
-            else if (themeId == R.id.rbThemeNeutral) theme = "neutral";
+        // Язык
+        String lang = rbLangEn.isChecked() ? "en" : "ru";
+        AppPrefs.setLang(this, lang);
 
-            // --- читаем выбранный язык ---
-            String lang = "ru";
-            int langId = rgLang.getCheckedRadioButtonId();
-            if (langId == R.id.rbLangEn) lang = "en";
-
-            // --- читаем состояние уведомлений ---
-            boolean notify = switchNotify.isChecked();
-
-            // --- сохраняем все настройки в SharedPreferences через AppPrefs ---
-            AppPrefs.setTheme(this, theme);
-            AppPrefs.setLang(this, lang);
-            AppPrefs.setNotificationsEnabled(this, notify);
-
-            Toast.makeText(this, "Настройки применены", Toast.LENGTH_SHORT).show();
-
-            // закрываем экран настроек и возвращаемся на главное
-            finish();
-        });
+        // Уведомления
+        AppPrefs.setNotificationsEnabled(this, switchNotify.isChecked());
     }
 }
