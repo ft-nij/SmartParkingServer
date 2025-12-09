@@ -1,8 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_50">#F3E5F5</color>
-    <color name="purple_500">#9C27B0</color>
-    <color name="purple_700">#7B1FA2</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- БАЗОВЫЕ ЦВЕТА СВЕТЛОЙ ТЕМЫ -->
+    <color name="colorPrimary">#4CAF50</color>          <!-- зелёный акцент (кнопки, нижняя навигация) -->
+    <color name="colorPrimaryDark">#388E3C</color>
+    <color name="colorAccent">#03DAC5</color>           <!-- бирюзовый для переключателей/выделений -->
+
+    <color name="light_background">#F4F5F7</color>      <!-- нейтральный светло-серый фон -->
+    <color name="light_surface">#FFFFFF</color>         <!-- карточки, тулбар, панели -->
+    <color name="light_on_surface">#222222</color>      <!-- основной текст -->
+    <color name="light_on_secondary">#666666</color>    <!-- подписи, вторичный текст -->
+
+    <!-- ТЁМНАЯ ТЕМА -->
+    <color name="dark_background">#121212</color>       <!-- фон всего экрана -->
+    <color name="dark_surface">#1E1E1E</color>         <!-- карточки, панели -->
+    <color name="dark_on_surface">#FFFFFF</color>       <!-- белый текст -->
+    <color name="dark_on_secondary">#B0B0B0</color>    <!-- вторичный текст -->
+
+    <color name="dark_primary">#4CAF50</color>         <!-- тот же зелёный как акцент -->
+    <color name="dark_primary_variant">#81C784</color>
+
+    <!-- ДЛЯ НЕЙТРАЛЬНОЙ ТЕМЫ (если будешь оставлять) -->
+    <color name="neutral_background">#ECEFF1</color>    <!-- серо-голубой -->
+    <color name="neutral_surface">#FFFFFF</color>
+    <color name="neutral_primary">#607D8B</color>       <!-- серо-синий -->
+    <color name="neutral_on_surface">#222222</color>
+
+    <color name="bottom_nav_bg">#FFFFFFFF</color>          <!-- фон панели -->
+    <color name="bottom_nav_unchecked">#99000000</color>   <!-- неактивные иконки/текст (тёмно-серый) -->
+    <color name="bottom_nav_checked">@color/colorPrimary</color>
+    <!-- Цвета для парковочных мест (как у тебя) -->
+    <color name="place_free">#A8E6CF</color>
+    <color name="place_busy">#FF8C8C</color>
+    <!-- Основной зелёный -->
+
+    <color name="colorPrimaryVariant">#1B5E20</color>
+    <color name="colorSecondary">#4CAF50</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+
+
+
 </resources>

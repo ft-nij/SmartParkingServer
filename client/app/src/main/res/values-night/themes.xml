@@ -1,7 +1,25 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.SmartParkingClient" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+
+    <!-- ТЁМНАЯ ТЕМА -->
+    <style name="Theme_SmartParkingClient_Dark" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/dark_primary</item>
+        <item name="colorPrimaryVariant">@color/dark_primary_variant</item>
+        <item name="colorAccent">@color/colorAccent</item>
+
+        <item name="android:statusBarColor">@color/dark_background</item>
+
+        <item name="android:windowBackground">@color/dark_background</item>
+        <item name="colorSurface">@color/dark_surface</item>
+        <item name="android:textColor">@color/dark_on_surface</item>
+
+        <item name="bottomNavigationStyle">@style/Widget.SmartParking.BottomNav.Dark</item>
     </style>
+
+    <style name="Widget.SmartParking.BottomNav.Dark" parent="Widget.MaterialComponents.BottomNavigationView.Colored">
+        <item name="itemIconTint">@color/bottom_nav_color_state_dark</item>
+        <item name="itemTextColor">@color/bottom_nav_color_state_dark</item>
+        <item name="android:background">@color/dark_surface</item>
+        <item name="elevation">8dp</item>
+    </style>
+
 </resources>

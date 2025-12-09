@@ -13,7 +13,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:usesCleartextTraffic="true"
         android:supportsRtl="true"
-        android:theme="@style/Theme.SmartParkingClient">
+        android:theme="@style/Theme_SmartParkingClient_Light">
 
         <!-- стартовое окно -->
         <activity

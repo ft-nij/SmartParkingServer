@@ -91,9 +91,7 @@ public class SettingsActivity extends AppCompatActivity {
             case "dark":
                 setTheme(R.style.Theme_SmartParkingClient_Dark);
                 break;
-            case "neutral":
-                setTheme(R.style.Theme_SmartParkingClient_Neutral);
-                break;
+
             default:
                 setTheme(R.style.Theme_SmartParkingClient_Light);
                 break;

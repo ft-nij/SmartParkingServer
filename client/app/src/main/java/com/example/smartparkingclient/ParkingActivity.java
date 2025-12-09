@@ -1,5 +1,6 @@
 package com.example.smartparkingclient;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.widget.LinearLayout;
@@ -61,23 +62,32 @@ public class ParkingActivity extends AppCompatActivity {
         if (bottomNav != null) {
             bottomNav.setOnItemSelectedListener(item -> {
                 int id = item.getItemId();
-                if (id == R.id.tab_profile) {
-                    Toast.makeText(this,
-                            "Профиль пока заглушка",
-                            Toast.LENGTH_SHORT).show();
-                    return true;
-                } else if (id == R.id.tab_home) {
 
+                if (id == R.id.tab_profile) {
+                    Intent intent = new Intent(this, MainActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    intent.putExtra("open_profile", true);
+                    startActivity(intent);
                     return true;
+
+                } else if (id == R.id.tab_home) {
+                    Intent intent = new Intent(this, MainActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    startActivity(intent);
+                    return true;
+
                 } else if (id == R.id.tab_settings) {
-                    // можно открыть SettingsActivity при желании
+                    Intent intent = new Intent(this, SettingsActivity.class);
+                    startActivity(intent);
                     return true;
                 }
+
                 return false;
             });
-            bottomNav.setSelectedItemId(R.id.tab_home);
-        }
 
+            // только визуально подсвечиваем вкладку, БЕЗ вызова listener
+            bottomNav.getMenu().findItem(R.id.tab_home).setChecked(true);
+        }
         loadParkingPlaces();
     }
 
@@ -90,9 +100,7 @@ public class ParkingActivity extends AppCompatActivity {
             case "dark":
                 setTheme(R.style.Theme_SmartParkingClient_Dark);
                 break;
-            case "neutral":
-                setTheme(R.style.Theme_SmartParkingClient_Neutral);
-                break;
+
             default:
                 setTheme(R.style.Theme_SmartParkingClient_Light);
                 break;
@@ -143,6 +151,15 @@ public class ParkingActivity extends AppCompatActivity {
                     int myPlaceId = AppPrefs.getCurrentPlaceId(ParkingActivity.this);
 
                     runOnUiThread(() -> {
+
+                        // защита от null, на всякий случай
+                        if (leftColumn == null || rightColumn == null) {
+                            Toast.makeText(ParkingActivity.this,
+                                    "Ошибка интерфейса (колонки парковки не найдены)",
+                                    Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
                         leftColumn.removeAllViews();
                         rightColumn.removeAllViews();
 
@@ -151,7 +168,7 @@ public class ParkingActivity extends AppCompatActivity {
                             if (place == null) continue;
 
                             int id = place.optInt("id");
-                            String status = place.optString("status");
+                            String status = place.optString("status"); // "free" или "busy"
 
                             TextView tv = createPlaceView(id, status, myPlaceId);
 
@@ -258,7 +275,7 @@ public class ParkingActivity extends AppCompatActivity {
 
     private void showExitDialog(int placeId) {
         String message = "Вы покидаете место № " + placeId +
-                ".\nС вашего баланса будет списана условная сумма.\n" +
+                ".\nС вашего баланса будет списана сумма по времени стоянки.\n" +
                 "Через 5 секунд откроется шлагбаум.\nПриятного пути!";
 
         new AlertDialog.Builder(this)
@@ -307,7 +324,6 @@ public class ParkingActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         if (isEnter) {
                             // === ЗАЕЗД ===
-                            // запоминаем место и время начала
                             AppPrefs.setCurrentPlaceId(ParkingActivity.this, id);
                             AppPrefs.setCurrentPlaceStart(ParkingActivity.this,
                                     System.currentTimeMillis());
@@ -319,7 +335,6 @@ public class ParkingActivity extends AppCompatActivity {
                             }
                         } else {
                             // === ВЫЕЗД ===
-
                             long start = AppPrefs.getCurrentPlaceStart(ParkingActivity.this);
                             long now = System.currentTimeMillis();
 
@@ -329,7 +344,6 @@ public class ParkingActivity extends AppCompatActivity {
                                 if (minutes <= 0) minutes = 1;
                             }
 
-                            // Простой тариф: 50 ₽ за каждый начатый час
                             int pricePerHour = 50;
                             int hours = (int) ((minutes + 59) / 60); // округление вверх
                             if (hours <= 0) hours = 1;
@@ -339,11 +353,10 @@ public class ParkingActivity extends AppCompatActivity {
                             int balanceAfter = Math.max(0, balanceBefore - cost);
                             AppPrefs.setBalance(ParkingActivity.this, balanceAfter);
 
-                            // сбрасываем текущие данные по месту
+                            // сбрасываем данные по занятости
                             AppPrefs.setCurrentPlaceId(ParkingActivity.this, -1);
                             AppPrefs.setCurrentPlaceStart(ParkingActivity.this, 0L);
 
-                            // записываем историю
                             String record = "Место " + id +
                                     ", " + minutes + " мин (" + hours + " ч), " +
                                     "списано " + cost + " ₽. Остаток: " + balanceAfter + " ₽";
@@ -356,7 +369,6 @@ public class ParkingActivity extends AppCompatActivity {
                             }
                         }
 
-                        // перезагружаем список мест
                         loadParkingPlaces();
                     });
                 }

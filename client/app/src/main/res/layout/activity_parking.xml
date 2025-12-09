@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#FFFFFF"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="#FFFFFF">
 
     <TextView
         android:id="@+id/titleText"
@@ -37,7 +36,7 @@
                 android:layout_weight="1"
                 android:orientation="vertical" />
 
-            <!-- дорога по центру -->
+            <!-- дорога посередине -->
             <View
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
@@ -55,12 +54,11 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- 🔽 ВОТ ЭТО — нижняя навигация -->
+    <!-- нижняя навигация -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?android:attr/windowBackground"
         app:menu="@menu/bottom_nav_menu" />
 
 </LinearLayout>
