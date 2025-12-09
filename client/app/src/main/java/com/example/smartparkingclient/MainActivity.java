@@ -87,7 +87,10 @@ public class MainActivity extends AppCompatActivity {
         btnExit = findViewById(R.id.btnExit);
 
         btnEnter.setOnClickListener(v -> {
-
+            if (!isAuthorized) {
+                showNeedAuthDialog();
+                return;
+            }
             if (AppPrefs.isNotificationsEnabled(this)) {
                 Toast.makeText(this, "Заезд на парковку", Toast.LENGTH_SHORT).show();
             }
@@ -97,7 +100,10 @@ public class MainActivity extends AppCompatActivity {
         });
 
         btnExit.setOnClickListener(v -> {
-
+            if (!isAuthorized) {
+                showNeedAuthDialog();
+                return;
+            }
             if (AppPrefs.isNotificationsEnabled(this)) {
                 Toast.makeText(this, "Выезд с парковки", Toast.LENGTH_SHORT).show();
             }
@@ -411,7 +417,14 @@ public class MainActivity extends AppCompatActivity {
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
     }
-
+    private void showNeedAuthDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Требуется авторизация")
+                .setMessage("Перед тем, как заехать или выехать, необходимо авторизоваться.")
+                .setPositiveButton("Авторизоваться", (dialog, which) -> showLoginDialog())
+                .setNegativeButton("Отмена", null)
+                .show();
+    }
     // ---------- dp → px ----------
     private int dpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;

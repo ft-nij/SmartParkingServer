@@ -1,19 +1,41 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from datetime import datetime
+import json
+import os
+
 
 app = Flask(__name__)
 CORS(app)
 
 # -----------------------------------------
-# Генерация парковочных мест 0..19
-# id = index + 1 (как требуют задания)
+# Загрузка состояния парковки из JSON
 # -----------------------------------------
-parking_places = [
-    {"status": "free"}
-    for i in range(20)
-]
+def load_parking_state():
+    if os.path.exists("parking_state.json"):
+        with open("parking_state.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        return None
 
+# -----------------------------------------
+# -----------------------------------------
+# Инициализация списка мест (из файла или дефолт)
+# -----------------------------------------
+loaded_state = load_parking_state()
+
+if loaded_state:
+    parking_places = loaded_state
+else:
+    parking_places = [{"status": "free"} for _ in range(20)]
+
+
+# -----------------------------------------
+# Сохранение состояния парковки в JSON
+# -----------------------------------------
+def save_parking_state():
+    with open("parking_state.json", "w", encoding="utf-8") as f:
+        json.dump(parking_places, f, indent=4, ensure_ascii=False)
 
 # -----------------------------------------
 # Вернуть список мест
@@ -49,9 +71,12 @@ def update_place():
     old_status = parking_places[index]["status"]
     parking_places[index]["status"] = new_status
 
+    save_parking_state()  # 💾 Сохраняем новое состояние в JSON
+
     log_action(f"Place {place_id}: {old_status} -> {new_status}")
 
     return jsonify({"success": True, "message": "Status updated"})
+
 
 
 # -----------------------------------------
