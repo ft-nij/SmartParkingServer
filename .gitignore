@@ -30,3 +30,4 @@ Thumbs.db
 *.log
 server_log.txt
 parking_state.json
+parking_data.json
