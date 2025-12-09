@@ -28,3 +28,4 @@ instance/
 # System
 Thumbs.db
 *.log
+server_log.txt

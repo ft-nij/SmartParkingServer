@@ -1,79 +1,71 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import json
-import os
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
 
-# ---------------------------------------
-#   Настройки
-# ---------------------------------------
-
-LOG_FILE = "parking_actions.log"
-
-# Парковочные места в памяти
-# Индексы 0..N-1, но id = index + 1
+# -----------------------------------------
+# Генерация парковочных мест 0..19
+# id = index + 1 (как требуют задания)
+# -----------------------------------------
 parking_places = [
-    {"status": "free"},
-    {"status": "busy"},
-    {"status": "free"},
-    {"status": "busy"},
-    {"status": "free"},
+    {"status": "free"}
+    for i in range(20)
 ]
 
-# ---------------------------------------
-#   Функция логирования
-# ---------------------------------------
 
-def log_action(action: str):
-    """Корректная запись в файл с использованием with open()."""
-    with open(LOG_FILE, "a", encoding="utf-8") as log:
-        log.write(action + "\n")
-
-# ---------------------------------------
-#   Маршруты сервера
-# ---------------------------------------
-
+# -----------------------------------------
+# Вернуть список мест
+# -----------------------------------------
 @app.get("/places")
 def get_places():
-    """Возвращает список парковочных мест с ID начиная с 1."""
-    output = {
+    return jsonify({
         "places": [
-            {"id": idx + 1, "status": place["status"]}
-            for idx, place in enumerate(parking_places)
+            {"id": i + 1, "status": place["status"]}
+            for i, place in enumerate(parking_places)
         ]
-    }
-    return jsonify(output)
+    })
 
-@app.post("/toggle")
-def toggle_place():
-    """Переключает состояние места (free/busy)."""
-    data = request.json
 
-    if "id" not in data:
-        return jsonify({"error": "id required"}), 400
+# -----------------------------------------
+# Обновление статуса места
+# -----------------------------------------
+@app.post("/update")
+def update_place():
+    data = request.get_json()
 
-    place_id = data["id"]
-    index = place_id - 1  # переводим в индекс списка
+    place_id = data.get("id")      # id от 1 до 20
+    new_status = data.get("status")
 
-    if index < 0 or index >= len(parking_places):
-        return jsonify({"error": "invalid id"}), 400
+    # Проверки
+    if place_id is None or not (1 <= place_id <= 20):
+        return jsonify({"success": False, "message": "Invalid id"}), 400
+    if new_status not in ("free", "busy"):
+        return jsonify({"success": False, "message": "Invalid status"}), 400
 
-    # Переключение статуса
+    index = place_id - 1           # переводим id → индекс
+
     old_status = parking_places[index]["status"]
-    new_status = "busy" if old_status == "free" else "free"
     parking_places[index]["status"] = new_status
 
-    # Логируем корректно
-    log_action(f"[TOGGLE] Place {place_id} changed {old_status} → {new_status}")
+    log_action(f"Place {place_id}: {old_status} -> {new_status}")
 
-    return jsonify({"id": place_id, "status": new_status})
+    return jsonify({"success": True, "message": "Status updated"})
 
-# ---------------------------------------
-#   Запуск сервера
-# ---------------------------------------
 
+# -----------------------------------------
+# Логирование в файл
+# -----------------------------------------
+def log_action(message: str):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open("server_log.txt", "a", encoding="utf-8") as f:
+        f.write(f"[{timestamp}] {message}\n")
+
+
+# -----------------------------------------
+# Запуск сервера
+# -----------------------------------------
 if __name__ == "__main__":
-    print("🚗 SmartParkingServer started on http://localhost:8000")
+    print("🚗 SmartParkingServer running at http://localhost:8000")
     app.run(host="0.0.0.0", port=8000)
