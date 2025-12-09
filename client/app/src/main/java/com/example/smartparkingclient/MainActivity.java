@@ -42,16 +42,22 @@ public class MainActivity extends AppCompatActivity {
     private android.widget.TextView headerUserName;
     private android.widget.TextView headerBalance;
 
-    // Для отслеживания изменения темы
+    // Текст статистики
+    private android.widget.TextView textStats;
+
+    // Для таймера статистики
+    private android.os.Handler statsHandler = new android.os.Handler();
+
+    // Для отслеживания темы
     private String lastTheme;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        applyThemeFromPrefs();          // СНАЧАЛА тема
+        applyThemeFromPrefs();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // ----- инициализация Drawer / Toolbar -----
+        // ----- Drawer / Toolbar -----
         drawerLayout = findViewById(R.id.drawer_layout);
         navigationView = findViewById(R.id.nav_view);
         toolbar = findViewById(R.id.toolbar);
@@ -59,7 +65,6 @@ public class MainActivity extends AppCompatActivity {
 
         setSupportActionBar(toolbar);
 
-        // читаем состояние авторизации из настроек
         isAuthorized = AppPrefs.isAuthorized(this);
         currentUserName = AppPrefs.getUserName(this);
 
@@ -82,10 +87,7 @@ public class MainActivity extends AppCompatActivity {
         btnExit = findViewById(R.id.btnExit);
 
         btnEnter.setOnClickListener(v -> {
-            if (!isAuthorized) {
-                showNeedAuthDialog();
-                return;
-            }
+
             if (AppPrefs.isNotificationsEnabled(this)) {
                 Toast.makeText(this, "Заезд на парковку", Toast.LENGTH_SHORT).show();
             }
@@ -95,10 +97,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         btnExit.setOnClickListener(v -> {
-            if (!isAuthorized) {
-                showNeedAuthDialog();
-                return;
-            }
+
             if (AppPrefs.isNotificationsEnabled(this)) {
                 Toast.makeText(this, "Выезд с парковки", Toast.LENGTH_SHORT).show();
             }
@@ -110,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
         // ----- нижняя навигация -----
         setupBottomNavigation();
 
-        // ----- обработка системной кнопки "Назад" с учётом открытого меню -----
+        // ----- системная кнопка назад -----
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -122,9 +121,13 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
+        // ---------- статистика ----------
+        textStats = findViewById(R.id.textStats);
+        startStatsAutoUpdate();
     }
 
-    // применяем тему + запоминаем какую применили
+    // ---------- применение темы ----------
     private void applyThemeFromPrefs() {
         String theme = AppPrefs.getTheme(this);
         lastTheme = theme;
@@ -133,27 +136,95 @@ public class MainActivity extends AppCompatActivity {
             case "dark":
                 setTheme(R.style.Theme_SmartParkingClient_Dark);
                 break;
-
             default:
                 setTheme(R.style.Theme_SmartParkingClient_Light);
                 break;
         }
     }
 
-    // Если тема изменилась в настройках — пересоздаём экран
     @Override
     protected void onResume() {
         super.onResume();
 
         String currentTheme = AppPrefs.getTheme(this);
-        if (lastTheme != null && !lastTheme.equals(currentTheme)) {
+        if (!lastTheme.equals(currentTheme)) {
             lastTheme = currentTheme;
             recreate();
             return;
         }
 
-        // обновляем имя и баланс в шапке
         updateHeader();
+        startStatsAutoUpdate();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        statsHandler.removeCallbacksAndMessages(null);
+    }
+
+    // ---------- таймер статистики ----------
+    private void startStatsAutoUpdate() {
+        statsHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                loadStats();
+                statsHandler.postDelayed(this, 5000);
+            }
+        }, 1000);
+    }
+
+    // ---------- запрос статистики ----------
+    private void loadStats() {
+        String url = "http://192.168.1.126:8000/stats";
+
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .build();
+
+        new okhttp3.OkHttpClient().newCall(request).enqueue(new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() ->
+                        textStats.setText("Ошибка соединения с сервером")
+                );
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response)
+                    throws java.io.IOException {
+
+                if (!response.isSuccessful() || response.body() == null) {
+                    runOnUiThread(() ->
+                            textStats.setText("Ошибка данных")
+                    );
+                    return;
+                }
+
+                String json = response.body().string();
+
+                try {
+                    org.json.JSONObject obj = new org.json.JSONObject(json);
+
+                    int free = obj.getInt("free");
+                    int busy = obj.getInt("busy");
+                    int total = obj.getInt("total");
+                    String load = obj.getString("load");
+
+                    String text = "Свободно: " + free +
+                            " | Занято: " + busy +
+                            " | Всего: " + total +
+                            " | Загруженность: " + load;
+
+                    runOnUiThread(() -> textStats.setText(text));
+
+                } catch (Exception e) {
+                    runOnUiThread(() ->
+                            textStats.setText("Ошибка обработки данных")
+                    );
+                }
+            }
+        });
     }
 
     // ---------- нижняя навигация ----------
@@ -163,17 +234,13 @@ public class MainActivity extends AppCompatActivity {
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.tab_profile) {
-                if (!isAuthorized) {
-                    showLoginDialog();
-                } else {
-                    showProfileDialog();
-                }
+                if (!isAuthorized) showLoginDialog();
+                else showProfileDialog();
                 return true;
             } else if (id == R.id.tab_home) {
-                return true; // уже на главном
+                return true;
             } else if (id == R.id.tab_settings) {
-                Intent intent = new Intent(this, SettingsActivity.class);
-                startActivity(intent);
+                startActivity(new Intent(this, SettingsActivity.class));
                 return true;
             }
             return false;
@@ -182,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
         bottomNav.setSelectedItemId(R.id.tab_home);
     }
 
-    // ---------- профиль с историей ----------
+    // ---------- профиль ----------
     private void showProfileDialog() {
         String name = AppPrefs.getUserName(this);
         int balance = AppPrefs.getBalance(this);
@@ -199,7 +266,114 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    // ---------- обработка пунктов БОКОВОГО меню ----------
+    // ---------- авторизация ----------
+    private void showLoginDialog() {
+        final EditText inputName = new EditText(this);
+        inputName.setHint("Введите имя");
+
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        int padding = dpToPx(20);
+        container.setPadding(padding, padding, padding, padding);
+        container.addView(inputName);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Авторизация")
+                .setView(container)
+                .setPositiveButton("Войти", (dialog, which) -> {
+                    String name = inputName.getText().toString().trim();
+                    if (name.isEmpty()) {
+                        Toast.makeText(this,
+                                "Имя не может быть пустым",
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    isAuthorized = true;
+                    currentUserName = name;
+
+                    AppPrefs.setAuthorized(this, true);
+                    AppPrefs.setUserName(this, name);
+                    AppPrefs.setBalance(this, 150);
+
+                    updateHeader();
+
+                    Toast.makeText(this,
+                            "Добро пожаловать, " + currentUserName + "!",
+                            Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Отмена", null)
+                .show();
+    }
+
+    // ---------- "О приложении" ----------
+    private void showAboutDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("О приложении")
+                .setMessage("Smart Parking\n\nДемо приложение парковки.")
+                .setPositiveButton("OK", null)
+                .show();
+    }
+
+    // ---------- пополнение баланса ----------
+    private void showTopUpDialog() {
+        int current = AppPrefs.getBalance(this);
+
+        EditText input = new EditText(this);
+        input.setHint("Сумма пополнения");
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        int padding = dpToPx(20);
+        container.setPadding(padding, padding, padding, padding);
+
+        android.widget.TextView info = new android.widget.TextView(this);
+        info.setText("Текущий баланс: " + current + " ₽");
+
+        container.addView(info);
+        container.addView(input);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Пополнение")
+                .setView(container)
+                .setPositiveButton("Пополнить", (dialog, which) -> {
+                    String text = input.getText().toString().trim();
+                    if (text.isEmpty()) {
+                        Toast.makeText(this, "Введите сумму", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    try {
+                        int amount = Integer.parseInt(text);
+                        if (amount <= 0) {
+                            Toast.makeText(this, "Сумма должна быть > 0", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        AppPrefs.addToBalance(this, amount);
+                        updateHeader();
+                        Toast.makeText(this,
+                                "Баланс пополнен на " + amount + " ₽",
+                                Toast.LENGTH_SHORT).show();
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(this, "Некорректная сумма", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Отмена", null)
+                .show();
+    }
+
+    // ---------- обновление шапки меню ----------
+    private void updateHeader() {
+        if (headerUserName != null) {
+            headerUserName.setText(AppPrefs.getUserName(this));
+        }
+        if (headerBalance != null) {
+            int balance = AppPrefs.getBalance(this);
+            headerBalance.setText("Баланс: " + balance + " ₽");
+        }
+    }
+
+    // ---------- обработка бокового меню ----------
     private boolean onNavItemSelected(MenuItem item) {
         int id = item.getItemId();
 
@@ -207,7 +381,7 @@ public class MainActivity extends AppCompatActivity {
             showLoginDialog();
         } else if (id == R.id.nav_balance) {
             if (!isAuthorized) {
-                showNeedAuthToast();
+                Toast.makeText(this, "Сначала авторизуйтесь", Toast.LENGTH_SHORT).show();
             } else {
                 showTopUpDialog();
             }
@@ -238,146 +412,7 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-    // ---------- диалог "нужно авторизоваться" ----------
-    private void showNeedAuthDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Требуется авторизация")
-                .setMessage("Перед тем, как заехать или выехать, необходимо авторизоваться.")
-                .setPositiveButton("Авторизоваться", (dialog, which) -> showLoginDialog())
-                .setNegativeButton("Отмена", null)
-                .show();
-    }
-
-    private void showNeedAuthToast() {
-        Toast.makeText(this, "Сначала авторизуйтесь", Toast.LENGTH_SHORT).show();
-    }
-
-    // ---------- простой диалог авторизации ----------
-    private void showLoginDialog() {
-        final EditText inputName = new EditText(this);
-        inputName.setHint("Введите имя");
-
-        LinearLayout container = new LinearLayout(this);
-        container.setOrientation(LinearLayout.VERTICAL);
-        int padding = dpToPx(20);
-        container.setPadding(padding, padding, padding, padding);
-        container.addView(inputName,
-                new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        new AlertDialog.Builder(this)
-                .setTitle("Авторизация")
-                .setView(container)
-                .setPositiveButton("Войти", (dialog, which) -> {
-                    String name = inputName.getText().toString().trim();
-                    if (name.isEmpty()) {
-                        Toast.makeText(this,
-                                "Имя не может быть пустым",
-                                Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    isAuthorized = true;
-                    currentUserName = name;
-
-                    // сохраняем в настройки
-                    AppPrefs.setAuthorized(this, true);
-                    AppPrefs.setUserName(this, name);
-
-                    // стартовый баланс
-                    AppPrefs.setBalance(this, 150);
-                    updateHeader();
-
-                    Toast.makeText(this,
-                            "Добро пожаловать, " + currentUserName + "!",
-                            Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton("Отмена", null)
-                .show();
-    }
-
-    // ---------- пополнение баланса ----------
-    private void showTopUpDialog() {
-        int current = AppPrefs.getBalance(this);
-
-        EditText input = new EditText(this);
-        input.setHint("Сумма пополнения");
-        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-
-        LinearLayout container = new LinearLayout(this);
-        container.setOrientation(LinearLayout.VERTICAL);
-        int padding = dpToPx(20);
-        container.setPadding(padding, padding, padding, padding);
-
-        android.widget.TextView info = new android.widget.TextView(this);
-        info.setText("Текущий баланс: " + current + " ₽");
-
-        container.addView(info,
-                new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT));
-        container.addView(input,
-                new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        new AlertDialog.Builder(this)
-                .setTitle("Пополнение баланса")
-                .setView(container)
-                .setPositiveButton("Пополнить", (dialog, which) -> {
-                    String text = input.getText().toString().trim();
-                    if (text.isEmpty()) {
-                        Toast.makeText(this,
-                                "Введите сумму",
-                                Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    try {
-                        int amount = Integer.parseInt(text);
-                        if (amount <= 0) {
-                            Toast.makeText(this,
-                                    "Сумма должна быть > 0",
-                                    Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        AppPrefs.addToBalance(this, amount);
-                        updateHeader();
-                        Toast.makeText(this,
-                                "Баланс пополнен на " + amount + " ₽",
-                                Toast.LENGTH_SHORT).show();
-                    } catch (NumberFormatException e) {
-                        Toast.makeText(this,
-                                "Некорректная сумма",
-                                Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Отмена", null)
-                .show();
-    }
-
-    // ---------- "О приложении" ----------
-    private void showAboutDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("О приложении")
-                .setMessage("Smart Parking\n\nДемонстрационное приложение для управления парковкой.")
-                .setPositiveButton("OK", null)
-                .show();
-    }
-
-    // ---------- обновление шапки меню ----------
-    private void updateHeader() {
-        if (headerUserName != null) {
-            // имя всегда берём из настроек, чтобы было актуально
-            headerUserName.setText(AppPrefs.getUserName(this));
-        }
-        if (headerBalance != null) {
-            int balance = AppPrefs.getBalance(this);
-            headerBalance.setText("Баланс: " + balance + " ₽");
-        }
-    }
-
-    // ---------- утилита dp -> px ----------
+    // ---------- dp → px ----------
     private int dpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round(dp * density);

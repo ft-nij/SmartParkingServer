@@ -18,6 +18,17 @@
             android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorPrimary"
             android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
+        <!-- Блок статистики парковки -->
+        <TextView
+            android:id="@+id/textStats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Статистика загружается..."
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:padding="16dp"
+            android:gravity="center"
+            android:background="#EEEEEE"/>
 
         <!-- Контент: карточка с кнопками -->
         <LinearLayout

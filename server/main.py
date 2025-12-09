@@ -66,6 +66,27 @@ def log_action(message: str):
 # -----------------------------------------
 # Запуск сервера
 # -----------------------------------------
+@app.get("/stats")
+def get_stats():
+    free = 0
+    busy = 0
+
+    for place in parking_places:
+        if place["status"] == "free":
+            free += 1
+        else:
+            busy += 1
+
+    total = len(parking_places)
+    load = int(busy / total * 100)  # процент занятых мест
+
+    return jsonify({
+        "free": free,
+        "busy": busy,
+        "total": total,
+        "load": f"{load}%"
+    })
+
 if __name__ == "__main__":
     print("🚗 SmartParkingServer running at http://localhost:8000")
     app.run(host="0.0.0.0", port=8000)
